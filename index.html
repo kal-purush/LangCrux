@@ -4,34 +4,56 @@
     <title>Interactive Website Language Visualization</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
+        
         body { 
-            display: flex; 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial; 
-            flex-wrap: wrap; 
-            height: 100vh; 
-            overflow: hidden; 
+        display: flex; 
+        margin: 0; 
+        padding: 20px; 
+        font-family: Arial; 
+        flex-wrap: wrap; 
+        height: 100vh; 
+        overflow: hidden; 
         }
         #controls { 
-            width: 20%; 
-            min-width: 250px; 
+            width: 20%; /* 1/5 of the screen width */
+            min-width: 200px; /* Minimum width to ensure usability on small screens */
             padding: 20px; 
             overflow-y: auto;
             background: #f8f9fa;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box; /* Ensure padding is included in the width */
         }
         #chart { 
-            width: 75%; 
-            min-width: 300px; 
+            width: 80%; /* 4/5 of the screen width */
+            min-width: 300px; /* Minimum width to ensure usability on small screens */
             background: linear-gradient(135deg, #f5f7fa, #c3cfe2); 
             border-radius: 10px; 
             padding: 20px; 
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
-            height: calc(100vh - 40px); 
+            height: calc(100vh - 40px); /* Full height minus padding */
             overflow: hidden; 
+            box-sizing: border-box; /* Ensure padding is included in the width */
         }
+        /* Responsive design adjustments */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                height: auto;
+                overflow: auto;
+            }
+
+            #controls, #chart {
+                width: 100%; /* Full width on small screens */
+                height: auto; /* Auto height to fit content */
+                min-width: unset; /* Remove minimum width */
+            }
+
+            #controls {
+                margin-bottom: 20px; /* Add spacing between controls and chart */
+            }
+        }
+
         
         #sampling-slider {
             width: 90%; /* Adjust the width to 90% of the parent div */
