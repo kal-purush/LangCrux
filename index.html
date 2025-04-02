@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Website Language Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        
+        body { 
+        display: flex; 
+        margin: 0; 
+        padding: 20px; 
+        font-family: Arial; 
+        flex-wrap: wrap; 
+        height: 100vh; 
+        overflow: hidden; 
+        }
+        #controls { 
+            width: 20%; /* 1/5 of the screen width */
+            min-width: 200px; /* Minimum width to ensure usability on small screens */
+            padding: 20px; 
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box; /* Ensure padding is included in the width */
+        }
+        #chart { 
+            width: 80%; /* 4/5 of the screen width */
+            min-width: 300px; /* Minimum width to ensure usability on small screens */
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2); 
+            border-radius: 10px; 
+            padding: 20px; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
+            height: calc(100vh - 40px); /* Full height minus padding */
+            overflow: hidden; 
+            box-sizing: border-box; /* Ensure padding is included in the width */
+        }
+        /* Responsive design adjustments */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                height: auto;
+                overflow: auto;
+            }
+
+            #controls, #chart {
+                width: 100%; /* Full width on small screens */
+                height: auto; /* Auto height to fit content */
+                min-width: unset; /* Remove minimum width */
+            }
+
+            #controls {
+                margin-bottom: 20px; /* Add spacing between controls and chart */
+            }
+        }
+
+        
+        #sampling-slider {
+            width: 90%; /* Adjust the width to 90% of the parent div */
+        }
+        /* Controls styling */
+        h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #343a40;
+        }
+        .control-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .control-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        select, input[type="range"], input[type="number"], button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #495057;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: #dcdfe1;
+            height: 6px;
+            border-radius: 5px;
+            outline: none;
+            transition: background 0.3s;
+        }
+        input[type="range"]:hover {
+            background: #b0bec5;
+        }
+        input[type="number"] {
+            width: 60px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        #tooltip { 
+            position: absolute; 
+            background: rgba(255, 255, 255, 0.9); 
+            padding: 15px; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+            pointer-events: auto; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
+            max-width: 300px;
+            font-size: 14px;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            z-index: 10;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        #tooltip h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        #tooltip a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        #tooltip a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive design adjustments */
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: auto; overflow: auto; }
+            #controls, #chart { width: 100%; height: auto; }
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #4CAF50;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading data...</div>
+    </div>
+    <div id="controls">
+        <h3>Filters</h3>
+
+        <!-- Country filter -->
+        <div class="control-section">
+            <label for="country-select">Country:</label>
+            <select id="country-select">
+                <!-- Country options will be populated dynamically -->
+            </select>
+            <div id="loading" class="loading" style="display: none;">Loading...</div>
+        </div>
+
+        <!-- Native Language Percentage filter -->
+        <div class="control-section">
+            <label for="native-percent">Native Language %:</label>
+            <select id="native-percent">
+                <option value="all">Show All</option>
+                <option value="50">50%</option>
+                <option value="60">60%</option>
+                <option value="70">70%</option>
+                <option value="80">80%</option>
+                <option value="90">90%</option>
+                <option value="custom">Custom</option>
+            </select>
+            <input type="number" id="custom-percent" style="display: none;" min="0" max="100">
+        </div>
+
+        <!-- Exact Match checkbox -->
+        <div class="control-section">
+            <label for="exact-match">
+                <input type="checkbox" id="exact-match"> Exact Match Only
+            </label>
+        </div>
+
+        <!-- Sampling slider -->
+        <div class="control-section">
+            <label for="sampling-slider">Data Sampling:</label>
+            <input type="range" id="sampling-slider" min="1" max="100" value="100">
+            <span id="sampling-value">100%</span>
+        </div>
+    </div>
+
+    <div id="chart"></div>
+    <div id="tooltip" style="display: none;"></div>
+
+<script>
+// Configuration
+const countries = ['bd', 'eg', 'gr', 'hk', 'il', 'jp', 'kr', 'ru', 'th', 'cn', 'in'];
+const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(countries);
+let currentData = [];
+let selectedDot = null; // Track the currently selected dot
+let zoomTransform = d3.zoomIdentity; // Track current zoom transform
+
+// Show loading overlay
+function showLoading() {
+    document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+// Hide loading overlay
+function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// Generate dummy data (10k points per country)
+// Load country data from JSON
+/*async function generateData(country) {
+    try {
+        showLoading(); // Show loading overlay
+        const response = await fetch(`website_data/${country}.json`);
+        if (!response.ok) throw new Error('Data not found');
+        return await response.json();
+    } catch (error) {
+        console.error('Error loading data:', error);
+        return [];
+    } finally {
+        hideLoading(); // Hide loading overlay
+    }
+}
+*/
+
+// Load country data from JSON (including multipart for "gr")
+async function generateData(country) {
+    try {
+        showLoading(); // Show loading overlay
+
+        if (country === 'gr') {
+            // Load and merge multiple parts for Greece
+            const partFiles = [
+                `website_data/gr-part-1.json`,
+                `website_data/gr-part-2.json`,
+                `website_data/gr-part-3.json`
+                // Add more parts here if needed
+            ];
+
+            const partData = await Promise.all(
+                partFiles.map(url => fetch(url).then(res => res.json()))
+            );
+
+            return partData.flat();
+        } else {
+            // Load single file for all other countries
+            const response = await fetch(`website_data/${country}.json`);
+            if (!response.ok) throw new Error('Data not found');
+            return await response.json();
+        }
+
+    } catch (error) {
+        console.error('Error loading data:', error);
+        return [];
+    } finally {
+        hideLoading(); // Hide loading overlay
+    }
+}
+
+
+
+// Initialize visualization
+const width = 1200, height = 600; // Adjusted height to fit viewport
+const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+
+const svg = d3.select("#chart")
+    .append("svg")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .call(d3.zoom().on("zoom", (event) => {
+        zoomTransform = event.transform;
+        svg.attr("transform", event.transform);
+        xAxis.call(d3.axisBottom(event.transform.rescaleX(xScale)).tickFormat(d => d + "%"));
+        yAxis.call(d3.axisLeft(event.transform.rescaleY(yScale)).tickFormat(d => d + "%"));
+    }))
+    .append("g");
+
+// Set up scales
+const xScale = d3.scaleLinear().domain([0, 100]).range([margin.left, width - margin.right]);
+const yScale = d3.scaleLinear().domain([0, 100]).range([height - margin.bottom, margin.top]);
+
+// Add axes
+const xAxis = svg.append("g")
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(xScale).tickFormat(d => d + "%"))
+    .append("text")
+    .attr("x", width/2)
+    .attr("y", 30)
+    .text("English Content (%)");
+
+const yAxis = svg.append("g")
+    .attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yScale).tickFormat(d => d + "%"))
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -40)
+    .attr("x", -height/2)
+    .text("Native Content (%)");
+
+// Populate country dropdown
+const countrySelect = d3.select("#country-select");
+countrySelect
+    .selectAll("option")
+    .data(countries)
+    .enter()
+    .append("option")
+    .text(d => d)
+    .attr("value", d => d);
+
+// Load dummy data for a country
+async function loadCountryData(country) {
+    currentData = await generateData(country);
+    console.log(currentData);
+    updateChart();
+}
+
+// Filtering function
+function filterData() {
+    const selectedPercent = document.getElementById('native-percent').value;
+    const exactMatch = document.getElementById('exact-match').checked;
+    const sampling = parseInt(document.getElementById('sampling-slider').value) / 100;
+
+    // If "Show All" is selected, return all data
+    if (selectedPercent === 'all') {
+        return currentData.slice(0, Math.floor(currentData.length * sampling));
+    }
+
+    const percentValue = selectedPercent === 'custom' ?
+        parseInt(document.getElementById('custom-percent').value) :
+        parseInt(selectedPercent);
+
+    const filteredData = currentData.filter(d => {
+        const percentMatch = exactMatch ? 
+            d.native === percentValue :
+            Math.abs(d.native - percentValue) <= 5;
+        return percentMatch;
+    });
+
+    // Apply sampling
+    return filteredData.slice(0, Math.floor(filteredData.length * sampling));
+}
+
+
+// // Filtering function
+// function filterData() {
+//     const selectedPercent = document.getElementById('native-percent').value === 'custom' ?
+//         parseInt(document.getElementById('custom-percent').value) :
+//         parseInt(document.getElementById('native-percent').value);
+        
+//     const exactMatch = document.getElementById('exact-match').checked;
+//     const sampling = parseInt(document.getElementById('sampling-slider').value) / 100;
+
+//     const filteredData = currentData.filter(d => {
+//         const percentMatch = exactMatch ? 
+//             d.native === selectedPercent :
+//             Math.abs(d.native - selectedPercent) <= 5;
+//         return percentMatch;
+//     });
+
+//     // Apply sampling
+//     return filteredData.slice(0, Math.floor(filteredData.length * sampling));
+// }
+
+// Update chart visualization
+function updateChart() {
+    const filteredData = filterData();
+    
+    const dots = svg.selectAll(".dot")
+        .data(filteredData, d => d.URL);
+
+    dots.exit().remove();
+
+    dots.enter()
+        .append("circle")
+        .attr("class", "dot")
+        .merge(dots)
+        .attr("r", 3) // Smaller dots for better visibility with 10k points
+        .attr("cx", d => xScale(d.English))
+        .attr("cy", d => yScale(d.native))
+        .attr("fill", d => colorScale(d.Country))
+        .on("click", (event, d) => {
+            selectedDot = d;
+            const encodedURL = encodeURI(`${d.URL}`); // Encode the URL
+            d3.select("#tooltip")
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY + 10 + "px")
+                .style("display", "block")
+                .html(`
+                    <strong><a href="${encodedURL}" target="_blank">${d.URL}</a></strong><br>
+                    Country: ${d.Country}<br>
+                    English: ${d.English}%<br>
+                    Native: ${d.native}%<br>
+                    Other: ${d.other}%
+                `);
+            event.stopPropagation(); // Prevent click from propagating to document
+        })
+        .on("mouseover", function() {
+            d3.select(this).attr("stroke-width", 2);
+        })
+        .on("mouseout", function() {
+            if (selectedDot !== d3.select(this).datum()) {
+                d3.select(this).attr("stroke-width", 0.5);
+            }
+        });
+
+    // Hide tooltip when clicking outside
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest("#tooltip") && !event.target.closest(".dot")) {
+            d3.select("#tooltip").style("display", "none");
+            selectedDot = null;
+        }
+    });
+}
+
+// Update sampling value display
+document.getElementById("sampling-slider").addEventListener("input", function() {
+    document.getElementById("sampling-value").textContent = `${this.value}%`;
+    updateChart();
+});
+
+// Event listeners
+document.getElementById('country-select').addEventListener('change', function() {
+    loadCountryData(this.value);
+});
+
+document.getElementById('native-percent').addEventListener('change', function() {
+    document.getElementById('custom-percent').style.display = 
+        this.value === 'custom' ? 'inline-block' : 'none';
+    updateChart();
+});
+
+document.getElementById('custom-percent').addEventListener('input', updateChart);
+document.getElementById('exact-match').addEventListener('change', updateChart);
+
+// Initialize with first country
+countrySelect.property('value', countries[0]);
+document.getElementById('native-percent').value = 'all'; // Set to "Show All" by default
+loadCountryData(countries[0]);
+</script>
+</body>
+</html>
