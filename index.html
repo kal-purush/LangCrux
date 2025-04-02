@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Interactive Website Language Visualization</title>
+    <title>LangCrux</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         
@@ -279,27 +279,11 @@ function hideLoading() {
 async function generateData(country) {
     try {
         showLoading(); // Show loading overlay
-
-        if (country === 'gr') {
-            // Load and merge multiple parts for Greece
-            const partFiles = [
-                `website_data/gr-part-1.json`,
-                `website_data/gr-part-2.json`,
-                `website_data/gr-part-3.json`
-                // Add more parts here if needed
-            ];
-
-            const partData = await Promise.all(
-                partFiles.map(url => fetch(url).then(res => res.json()))
-            );
-
-            return partData.flat();
-        } else {
-            // Load single file for all other countries
-            const response = await fetch(`website_data/${country}.json`);
-            if (!response.ok) throw new Error('Data not found');
-            return await response.json();
-        }
+        // Load single file for all other countries
+        const response = await fetch(`website_data/${country}.json`);
+        if (!response.ok) throw new Error('Data not found');
+        return await response.json();
+        
 
     } catch (error) {
         console.error('Error loading data:', error);
